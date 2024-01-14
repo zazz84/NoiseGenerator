@@ -11,7 +11,7 @@
 
 //==============================================================================
 
-const std::string NoiseGeneratorAudioProcessor::paramsNames[] = { "Color", "Volume" };
+const std::string NoiseGeneratorAudioProcessor::paramsNames[] = { "Volume" };
 
 //==============================================================================
 NoiseGeneratorAudioProcessor::NoiseGeneratorAudioProcessor()
@@ -26,8 +26,7 @@ NoiseGeneratorAudioProcessor::NoiseGeneratorAudioProcessor()
                        )
 #endif
 {
-	colorParameter  = apvts.getRawParameterValue(paramsNames[0]);
-	volumeParameter = apvts.getRawParameterValue(paramsNames[1]);
+	volumeParameter = apvts.getRawParameterValue(paramsNames[0]);
 
 	buttonAParameter = static_cast<juce::AudioParameterBool*>(apvts.getParameter("ButtonA"));
 	buttonBParameter = static_cast<juce::AudioParameterBool*>(apvts.getParameter("ButtonB"));
@@ -104,8 +103,15 @@ void NoiseGeneratorAudioProcessor::changeProgramName (int index, const juce::Str
 //==============================================================================
 void NoiseGeneratorAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {	
-	m_interpolationNoiseGenerator[0].init((int)(sampleRate));
-	m_interpolationNoiseGenerator[1].init((int)(sampleRate));
+	const int channels = getTotalNumOutputChannels();
+	if (channels <= 1)
+		return;
+
+	// Offset right channel
+	for (int i = 0; i < 48000; i++)
+	{
+		m_whiteNoiseGenerator[1].process();
+	}
 }
 
 void NoiseGeneratorAudioProcessor::releaseResources()
@@ -141,15 +147,22 @@ bool NoiseGeneratorAudioProcessor::isBusesLayoutSupported (const BusesLayout& la
 
 void NoiseGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
-	// Get params
-	const auto color  = colorParameter->load();
-	const auto volume = juce::Decibels::decibelsToGain(volumeParameter->load());
-
 	// Buttons
 	const auto buttonA = buttonAParameter->get();
 	const auto buttonB = buttonBParameter->get();
 	const auto buttonC = buttonCParameter->get();
 	const auto buttonD = buttonDParameter->get();
+
+	// Get params
+	float volume = 0.0f;
+	if (buttonA)
+		volume = juce::Decibels::decibelsToGain(volumeParameter->load()) * juce::Decibels::decibelsToGain(-42.0f);
+	else if (buttonB)
+		volume = juce::Decibels::decibelsToGain(volumeParameter->load()) * juce::Decibels::decibelsToGain(-43.0f);
+	else if (buttonC)
+		volume = juce::Decibels::decibelsToGain(volumeParameter->load()) * juce::Decibels::decibelsToGain(-47.0f);
+	else if (buttonD)	
+		volume = juce::Decibels::decibelsToGain(volumeParameter->load()) * juce::Decibels::decibelsToGain(-31.0f);
 
 	// Mics constants
 	const int channels = getTotalNumOutputChannels();
@@ -158,26 +171,20 @@ void NoiseGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffe
 	for (int channel = 0; channel < channels; ++channel)
 	{
 		auto* channelBuffer = buffer.getWritePointer(channel);
+		auto& whiteNoiseGenerator = m_whiteNoiseGenerator[channel];
 
-		auto& randomNoiseGenerator = m_randomNoiseGenerator[channel];
-		auto& fastNoiseGenerator = m_fastNoiseGenerator[channel];
-		auto& interpolationNoiseGenerator = m_interpolationNoiseGenerator[channel];
-		interpolationNoiseGenerator.setSpeed(color);
+		if (buttonA)
+			whiteNoiseGenerator.setDistributionType(WhiteNoiseGenerator::DistributionType::Uniform);
+		else if (buttonB)
+			whiteNoiseGenerator.setDistributionType(WhiteNoiseGenerator::DistributionType::Normal);
+		else if (buttonC)
+			whiteNoiseGenerator.setDistributionType(WhiteNoiseGenerator::DistributionType::Bernoulli);
+		else if (buttonD)	
+			whiteNoiseGenerator.setDistributionType(WhiteNoiseGenerator::DistributionType::PieceWise);
 
 		for (int sample = 0; sample < samples; ++sample)
 		{
-			if (buttonA)
-			{
-				channelBuffer[sample] = volume * randomNoiseGenerator.process();
-			}
-			else if (buttonB)
-			{
-				channelBuffer[sample] = volume * fastNoiseGenerator.process();
-			}
-			else if (buttonC)
-			{
-				channelBuffer[sample] = volume * interpolationNoiseGenerator.process();
-			}
+			channelBuffer[sample] = volume * whiteNoiseGenerator.process();
 		}
 	}
 }
@@ -216,8 +223,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout NoiseGeneratorAudioProcessor
 
 	using namespace juce;
 
-	layout.add(std::make_unique<juce::AudioParameterFloat>(paramsNames[0], paramsNames[0], NormalisableRange<float>(  0.0f,  1.0f, 0.001f, 0.3f), 1.0f));
-	layout.add(std::make_unique<juce::AudioParameterFloat>(paramsNames[1], paramsNames[1], NormalisableRange<float>(-24.0f, 24.0f,   0.1f, 1.0f), 0.0f));
+	layout.add(std::make_unique<juce::AudioParameterFloat>(paramsNames[0], paramsNames[0], NormalisableRange<float>(-24.0f, 24.0f,   0.1f, 1.0f), 0.0f));
 
 	layout.add(std::make_unique<juce::AudioParameterBool>("ButtonA", "ButtonA", true));
 	layout.add(std::make_unique<juce::AudioParameterBool>("ButtonB", "ButtonB", false));

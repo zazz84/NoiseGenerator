@@ -19,7 +19,7 @@ public:
     ~NoiseGeneratorAudioProcessorEditor() override;
 
 	// GUI setup
-	static const int N_SLIDERS_COUNT = 2;
+	static const int N_SLIDERS_COUNT = 1;
 	static const int SCALE = 70;
 	static const int LABEL_OFFSET = 25;
 	static const int SLIDER_WIDTH = 200;
@@ -43,10 +43,6 @@ private:
 	juce::Label m_labels[N_SLIDERS_COUNT] = {};
 	juce::Slider m_sliders[N_SLIDERS_COUNT] = {};
 	std::unique_ptr<SliderAttachment> m_sliderAttachment[N_SLIDERS_COUNT] = {};
-
-	juce::Label automationTLabel;
-	juce::Label smoothingTypeLabel;
-	juce::Label detectionTypeLabel;
 
 	juce::TextButton typeAButton{ "A" };
 	juce::TextButton typeBButton{ "B" };

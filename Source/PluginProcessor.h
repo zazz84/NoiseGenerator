@@ -64,7 +64,6 @@ public:
 
 private:	
 	//==============================================================================
-	std::atomic<float>* colorParameter = nullptr;
 	std::atomic<float>* volumeParameter = nullptr;
 
 	juce::AudioParameterBool* buttonAParameter = nullptr;
@@ -72,9 +71,7 @@ private:
 	juce::AudioParameterBool* buttonCParameter = nullptr;
 	juce::AudioParameterBool* buttonDParameter = nullptr;
 
-	RandomNoiseGenerator m_randomNoiseGenerator[2] = {};
-	FastNoiseGenerator m_fastNoiseGenerator[2] = {};
-	InterpolationNoiseGenerator m_interpolationNoiseGenerator[2] = {};
+	WhiteNoiseGenerator m_whiteNoiseGenerator[2] = {};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NoiseGeneratorAudioProcessor)
 };
